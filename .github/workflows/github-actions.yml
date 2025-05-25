@@ -1,51 +1,27 @@
 name: assignment-test
-
 on:
-  push:
-    branches:
-      - '*'
-    tags-ignore:
-      - '*'
-
+    push:
+        tags-ignore:
+            - '*'
+        branches:
+            - '*'
 jobs:
-  full-test:
-    container: cuaesd/aesd-autotest:24-assignment4-buildroot
-    runs-on: self-hosted
-    timeout-minutes: 120
-
-    steps:
-      # 用 SSH 支援方式 checkout 你的 repo，但不抓 submodules（自己控制）
-      - uses: actions/checkout@v2
-        with:
-          submodules: false
-
-      # 修復 known_hosts 避免 host key 錯誤（安全）
-      - name: Fix known_hosts mismatch
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keygen -R github.com || true
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
-
-      # 啟用 SSH Agent 並加載你存在 secret 中的私鑰
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.5.3
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      # 使用 SSH 抓 assignment-3-and-later repo 的 submodule（aesd-assignments）
-      - name: Update submodules
-        run: |
-          git submodule sync
-          git submodule update --init --recursive
-
-      # 執行 Buildroot 建構腳本
-      - name: Run full test
-        env:
-          GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
-        run: ./full-test.sh
-
-      # 清除 ssh-agent 內容
-      - name: Cleanup
-        if: always()
-        run: ssh-add -D
-
+    full-test:
+        container: cuaesd/aesd-autotest:24-assignment4-buildroot
+        runs-on: self-hosted
+        timeout-minutes: 120
+        steps:
+          - uses: actions/checkout@v2
+          - name: Checkout submodules
+            run: git submodule update --init --recursive
+          - uses: webfactory/ssh-agent@v0.5.3
+            with:
+                ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          - name: Run full test
+            env:
+              GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
+            run: ./full-test.sh
+          - name: Cleanup
+            if: always()
+            run: |
+              ssh-add -D
